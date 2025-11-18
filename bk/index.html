@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>財經新聞整合</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 16px; }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    .controls { margin-bottom: 12px; display: flex; gap: 8px; align-items: center; }
+    select, button { padding: 4px 8px; }
+    .news-item { margin-bottom: 8px; padding: 6px 8px; border-bottom: 1px solid #ddd; }
+    .news-meta { font-size: 12px; color: #666; }
+    .source-tag { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: #eee; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <h1>財經新聞整合</h1>
+
+  <div class="controls">
+    <button id="refreshBtn">重新整理</button>
+    <span id="status"></span>
+    <label>
+      來源：
+      <select id="sourceFilter">
+        <option value="">全部</option>
+        <option value="ltn">自由財經</option>
+        <option value="udn">聯合財經</option>
+        <option value="apple">蘋果財經</option>
+        <option value="yahoo">Yahoo 財經</option>
+        <option value="ettoday">ETtoday 財經</option>
+        <option value="cna">中央社財經</option>
+        <option value="pts">公視財經</option>
+        <option value="udn_rss">經濟日報 RSS</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="newsContainer"></div>
+
+  <script>
+    // 👉 換成你真正部署的 /exec URL
+    const API_URL = 'https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLjZQ6oQMdq7HsQGI64QXborYcQehlmupFOjKN2mEeTPEUOk8M4-LXoIh4sq_vNjUjM9zyJZyrbl-WthmN6EkqyjSRrY3ZZnVCiEpT7gh5I4Vda5SaNaOraR7rQkBf5SqxIo3K23Phd2tv-XV2LZvjNEpWPUtnwrDWxGcHbsD7uvcTTakA97OVR44sGLq8IuSRmdaANV5fl79a38Gv94-ms1_JR2-6aL7HHXkbQlkxdXXV0rrQpRHD0WRm3n5yIHkIawnm681wSPavwKunDBr_mpTnDkwjnPm1p7u0hm&lib=MOt4wOVen3602dkcWEAfZZnK1hFUHtFm3';
+
+    const newsContainer = document.getElementById('newsContainer');
+    const statusEl = document.getElementById('status');
+    const sourceFilter = document.getElementById('sourceFilter');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    let allNews = [];
+
+    async function fetchNews() {
+      statusEl.textContent = '載入中...';
+      newsContainer.innerHTML = '';
+
+      try {
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+
+        allNews = data.news || [];
+        statusEl.textContent = `共 ${allNews.length} 則新聞`;
+        renderNews();
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = '載入失敗，請稍後再試';
+      }
+    }
+
+    function renderNews() {
+      const filter = sourceFilter.value;
+      const list = filter ? allNews.filter(n => n.source === filter) : allNews;
+
+      newsContainer.innerHTML = '';
+
+      list.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'news-item';
+
+        // 有些 link 是相對路徑（例如 Yahoo），這裡可以再做一次簡單補全
+        let link = item.link;
+        if (link && link.startsWith('/')) {
+          if (item.source === 'yahoo') {
+            link = 'https://tw.stock.yahoo.com' + link;
+          } else if (item.source === 'udn') {
+            link = 'https://udn.com' + link;
+          }
+        }
+
+        div.innerHTML = `
+          <div>
+            <span class="source-tag">${item.sourceName}</span>
+            <a href="${link}" target="_blank" rel="noopener noreferrer">
+              ${item.title}
+            </a>
+          </div>
+          <div class="news-meta">
+            抓取時間：${item.timestamp}
+            ${item.rawTime ? `｜原始時間：${item.rawTime}` : ''}
+          </div>
+        `;
+        newsContainer.appendChild(div);
+      });
+    }
+
+    // 事件綁定
+    refreshBtn.addEventListener('click', fetchNews);
+    sourceFilter.addEventListener('change', renderNews);
+
+    // 頁面載入時自動撈一次
+    fetchNews();
+  </script>
+</body>
+</html>
